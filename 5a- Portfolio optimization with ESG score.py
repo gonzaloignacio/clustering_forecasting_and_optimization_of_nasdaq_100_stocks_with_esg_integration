@@ -4,16 +4,16 @@ import numpy as np
 from amplpy import AMPL, ampl_notebook
 
 # Read the inputs csv, sp500 for benchmark, predictions, correlations and esg
-sp500 = pd.read_csv(r"C:\Users\gonza\Documents\sp500.csv",
+sp500 = pd.read_csv(r"sp500.csv",
                     parse_dates = ["Date"],
                     index_col = ["Date"])
-predictions_return_c0_df = pd.read_csv(r"C:\Users\gonza\Documents\cluster_0_forecast_r.csv",
+predictions_return_c0_df = pd.read_csv(r"cluster_0_forecast_r.csv",
                                        index_col = [1])
-predictions_return_c1_df = pd.read_csv(r"C:\Users\gonza\Documents\cluster_1_forecast_r.csv",
+predictions_return_c1_df = pd.read_csv(r"cluster_1_forecast_r.csv",
                                        index_col = [1])
-predictions_volatility_c0_df = pd.read_csv(r"C:\Users\gonza\Documents\cluster_0_forecast_v.csv",
+predictions_volatility_c0_df = pd.read_csv(r"cluster_0_forecast_v.csv",
                                            index_col = [1])
-predictions_volatility_c1_df = pd.read_csv(r"C:\Users\gonza\Documents\cluster_1_forecast_v.csv",
+predictions_volatility_c1_df = pd.read_csv(r"cluster_1_forecast_v.csv",
                                            index_col = [1])
 predictions_return_df = pd.concat([predictions_return_c0_df,
                                    predictions_return_c1_df],
@@ -21,9 +21,9 @@ predictions_return_df = pd.concat([predictions_return_c0_df,
 predictions_volatility_df = pd.concat([predictions_volatility_c0_df,
                                        predictions_volatility_c1_df],
                                       ignore_index = False)
-corr_df = pd.read_csv(r"C:\Users\gonza\Documents\corr_matrix.csv",
+corr_df = pd.read_csv(r"corr_matrix.csv",
                       index_col = [0])
-esg_df = pd.read_csv(r"C:\Users\gonza\Documents\cluster_input.csv",
+esg_df = pd.read_csv(r"cluster_input.csv",
                      index_col = [0])
 esg_df = esg_df["ESG score"]
 
@@ -60,7 +60,7 @@ r_f = ((1 + r_f_year) ** (1/252)) - 1
 # Define the minimum variance optimization
 min_v_model = ampl_notebook(
     modules=["coin"],
-    license_uuid="f145edbd-5947-47fa-8d37-e5324bdd62a9")
+    license_uuid="xxxxxxxxxxxx")
 
 # Define the set
 min_v_model.eval("set companies;") # set of tickers
@@ -163,7 +163,7 @@ min_v_portfolio = pd.concat([min_v_result, min_v_weights_df],
 # Define the maximum return optimization
 max_r_model = ampl_notebook(
     modules=["coin"],
-    license_uuid="f145edbd-5947-47fa-8d37-e5324bdd62a9")
+    license_uuid="xxxxxxxxxxxx")
 
 # Define and assign sets
 max_r_model.eval("set companies;") # tickers
@@ -263,7 +263,7 @@ max_r_portfolio = pd.concat([max_r_result, max_r_weights_df],
 # Define the minimum ESG score optimization
 min_esg_model = ampl_notebook(
     modules=["coin"],
-    license_uuid="f145edbd-5947-47fa-8d37-e5324bdd62a9")
+    license_uuid="xxxxxxxxxxxx")
 
 # Define and assign the sets
 min_esg_model.eval("set companies;") # Tickers
@@ -363,7 +363,7 @@ min_esg_portfolio = pd.concat([min_esg_result, min_esg_weights_df],
 # Define the maximum Sharpe ratio portfolio
 max_sharpe_model = ampl_notebook(
     modules=["coin"],
-    license_uuid="f145edbd-5947-47fa-8d37-e5324bdd62a9")
+    license_uuid="xxxxxxxxxxxx")
 
 # Define sets
 max_sharpe_model.eval("set companies;") # Tickers
@@ -478,7 +478,7 @@ opt_portfolios = pd.concat([max_r_portfolio,
                             max_sharpe_portfolio,
                             min_esg_portfolio],
                            axis = 0)
-opt_portfolios.to_csv(r"C:\Users\gonza\Documents\opt_portfolios_esg.csv")
+opt_portfolios.to_csv(r"opt_portfolios_esg.csv")
 
 # Save all the weights in a dataframe
 best_weights = pd.concat([max_r_weights_df,
