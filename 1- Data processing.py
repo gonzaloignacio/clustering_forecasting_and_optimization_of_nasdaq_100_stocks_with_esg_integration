@@ -29,7 +29,6 @@ quick_ratio = []
 current_ratio = []
 debt_equity_ratio = []
 
-
 # Fill the lists with ticker information
 for i in tickers:
     ticker = yf.Ticker(i)
@@ -94,7 +93,6 @@ cluster_input_df = pd.concat([fund_df,
 
 # Use only the tickers with 10 years of data
 cluster_input_df.dropna(inplace = True)
-
 cluster_input_df.to_csv(r"C:\Users\gonza\Documents\cluster_input.csv")
 
 

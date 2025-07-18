@@ -65,7 +65,6 @@ plt.show()
 
 
 
-
 ###############################################################################
 
 
@@ -80,6 +79,14 @@ pca.fit(X_cluster_scaled)
 # Get the number of parameters that capture at least 80% of the variance
 cumulative_variance = pca.explained_variance_ratio_.cumsum()
 pca_idx = next(i for i, val in enumerate(cumulative_variance) if val > 0.8) + 1
+
+# Plot the cumulative variance
+sns.barplot(x = range(1, 11), y = cumulative_variance)
+plt.axhline(0.8, color = "red")
+plt.xlabel("Number of PCA components")
+plt.ylabel("Proportion of variance")
+plt.title("Proportion of variance by Number of PCA components")
+plt.show()
 
 # Fit the PCA model with the optimal parameters and transform the input data
 best_pca = PCA(n_components = pca_idx, random_state = seed)

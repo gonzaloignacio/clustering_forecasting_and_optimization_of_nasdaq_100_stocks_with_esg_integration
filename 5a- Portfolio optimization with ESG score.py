@@ -1,36 +1,41 @@
 # Import libraries
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
 from amplpy import AMPL, ampl_notebook
 
 # Read the inputs csv, sp500 for benchmark, predictions, correlations and esg
-sp500 = pd.read_csv(r"sp500.csv",
+sp500 = pd.read_csv(r"C:\Users\gonza\Documents\sp500.csv",
                     parse_dates = ["Date"],
                     index_col = ["Date"])
-predictions_return_c0_df = pd.read_csv(r"cluster_0_forecast_r.csv",
+predictions_return_c0_df = pd.read_csv(r"C:\Users\gonza\Documents\cluster_0_forecast_r.csv",
                                        index_col = [1])
-predictions_return_c1_df = pd.read_csv(r"cluster_1_forecast_r.csv",
+predictions_return_c1_df = pd.read_csv(r"C:\Users\gonza\Documents\cluster_1_forecast_r.csv",
                                        index_col = [1])
-predictions_volatility_c0_df = pd.read_csv(r"cluster_0_forecast_v.csv",
+predictions_volatility_c0_df = pd.read_csv(r"C:\Users\gonza\Documents\cluster_0_forecast_v.csv",
                                            index_col = [1])
-predictions_volatility_c1_df = pd.read_csv(r"cluster_1_forecast_v.csv",
+predictions_volatility_c1_df = pd.read_csv(r"C:\Users\gonza\Documents\cluster_1_forecast_v.csv",
                                            index_col = [1])
 predictions_return_df = pd.concat([predictions_return_c0_df,
                                    predictions_return_c1_df],
                                   ignore_index = False)
+predictions_return_df = predictions_return_df.sort_index()
 predictions_volatility_df = pd.concat([predictions_volatility_c0_df,
                                        predictions_volatility_c1_df],
                                       ignore_index = False)
-corr_df = pd.read_csv(r"corr_matrix.csv",
+predictions_volatility_df = predictions_volatility_df.sort_index()
+corr_df = pd.read_csv(r"C:\Users\gonza\Documents\corr_matrix.csv",
                       index_col = [0])
-esg_df = pd.read_csv(r"cluster_input.csv",
+corr_df = corr_df[sorted(corr_df.columns)].sort_index()
+esg_df = pd.read_csv(r"C:\Users\gonza\Documents\cluster_input.csv",
                      index_col = [0])
-esg_df = esg_df["ESG score"]
+esg_df = esg_df["ESG score"].sort_index()
 
 
 
 # Store the companies
-companies = predictions_return_df.index
+companies = predictions_return_df.sort_index().index
 
 # Get the covariance matrix as the correlation multiplied by the forecasted v
 diag = np.diag(predictions_volatility_df["forecast"])
@@ -46,7 +51,7 @@ esg_dict = dict(zip(companies, esg_df))
 # Define the threshold values for the optimizations, based on the sp500 values
 r_threshold = sp500.mean().values[0] * 1.5
 v_threshold = (sp500.std().values[0] * 1.5) ** 2
-esg_threshold = 10
+esg_threshold = 15
 
 # Define the risk-free asset return
 r_f_year = 0.038
@@ -60,7 +65,7 @@ r_f = ((1 + r_f_year) ** (1/252)) - 1
 # Define the minimum variance optimization
 min_v_model = ampl_notebook(
     modules=["coin"],
-    license_uuid="xxxxxxxxxxxx")
+    license_uuid="f145edbd-5947-47fa-8d37-e5324bdd62a9")
 
 # Define the set
 min_v_model.eval("set companies;") # set of tickers
@@ -155,6 +160,18 @@ min_v_weights_df = min_v_weights_df.set_index("model")
 min_v_portfolio = pd.concat([min_v_result, min_v_weights_df],
                             axis = 1)   
 
+# Plot a pie chart with the proportions to invest
+min_v_weights_pie = min_v_weights_df.T
+min_v_weights_pie_df = min_v_weights_pie[min_v_weights_pie["min_v_portfolio"] > 0.01].sort_values("min_v_portfolio", ascending = False)
+plt.pie(min_v_weights_pie_df["min_v_portfolio"], 
+        labels = None,
+        autopct = "%1.1f%%",
+        pctdistance = 1.2)
+plt.legend(min_v_weights_pie_df.index, title = "Companies", loc = "center left", bbox_to_anchor = (1.05, 0.5))
+plt.title("Optimal investment proportion in a minimum volatility portfolio", loc = "center")
+plt.tight_layout()
+#plt.subplots_adjust(left=0.05, right=0.75)
+plt.show()
 
 
 ###############################################################################
@@ -163,7 +180,7 @@ min_v_portfolio = pd.concat([min_v_result, min_v_weights_df],
 # Define the maximum return optimization
 max_r_model = ampl_notebook(
     modules=["coin"],
-    license_uuid="xxxxxxxxxxxx")
+    license_uuid="f145edbd-5947-47fa-8d37-e5324bdd62a9")
 
 # Define and assign sets
 max_r_model.eval("set companies;") # tickers
@@ -254,6 +271,17 @@ max_r_weights_df = max_r_weights_df.set_index("model")
 max_r_portfolio = pd.concat([max_r_result, max_r_weights_df],
                             axis = 1)
 
+# Plot a pie chart with the proportions to invest
+max_r_weights_pie = max_r_weights_df.T
+max_r_weights_pie_df = max_r_weights_pie[max_r_weights_pie["max_r_portfolio"] > 0].sort_values("max_r_portfolio", ascending = False)
+plt.pie(max_r_weights_pie_df["max_r_portfolio"], 
+        labels = None,
+        autopct = "%1.1f%%",
+        pctdistance = 1.2)
+plt.legend(max_r_weights_pie_df.index, title = "Companies", loc = "center left")
+plt.title("Optimal investment proportion in a maximum return portfolio")
+plt.show()
+
 
 
 ###############################################################################
@@ -263,7 +291,7 @@ max_r_portfolio = pd.concat([max_r_result, max_r_weights_df],
 # Define the minimum ESG score optimization
 min_esg_model = ampl_notebook(
     modules=["coin"],
-    license_uuid="xxxxxxxxxxxx")
+    license_uuid="f145edbd-5947-47fa-8d37-e5324bdd62a9")
 
 # Define and assign the sets
 min_esg_model.eval("set companies;") # Tickers
@@ -354,6 +382,17 @@ min_esg_weights_df = min_esg_weights_df.set_index("model")
 min_esg_portfolio = pd.concat([min_esg_result, min_esg_weights_df],
                             axis = 1)
 
+# Plot a pie chart with the proportions to invest
+min_esg_weights_pie = min_esg_weights_df.T
+min_esg_weights_pie_df = min_esg_weights_pie[min_esg_weights_pie["min_esg_portfolio"] > 0].sort_values("min_esg_portfolio", ascending = False)
+plt.pie(min_esg_weights_pie_df["min_esg_portfolio"], 
+        labels = None,
+        autopct = "%1.1f%%",
+        pctdistance = 1.2)
+plt.legend(min_esg_weights_pie_df.index, title = "Companies")
+plt.title("Optimal investment proportion in a minimum ESG score portfolio")
+plt.show()
+
 
 
 ###############################################################################
@@ -363,7 +402,7 @@ min_esg_portfolio = pd.concat([min_esg_result, min_esg_weights_df],
 # Define the maximum Sharpe ratio portfolio
 max_sharpe_model = ampl_notebook(
     modules=["coin"],
-    license_uuid="xxxxxxxxxxxx")
+    license_uuid="f145edbd-5947-47fa-8d37-e5324bdd62a9")
 
 # Define sets
 max_sharpe_model.eval("set companies;") # Tickers
@@ -466,6 +505,17 @@ max_sharpe_weights_df = max_sharpe_weights_df.set_index("model")
 max_sharpe_portfolio = pd.concat([max_sharpe_result, max_sharpe_weights_df],
                                  axis = 1)
 
+# Plot a pie chart with the proportions to invest
+max_sharpe_weights_pie = max_sharpe_weights_df.T
+max_sharpe_weights_pie_df = max_sharpe_weights_pie[max_sharpe_weights_pie["max_sharpe_portfolio"] > 0].sort_values("max_sharpe_portfolio", ascending = False)
+plt.pie(max_sharpe_weights_pie_df["max_sharpe_portfolio"], 
+        labels = None,
+        autopct = "%1.1f%%",
+        pctdistance = 1.2)
+plt.legend(max_sharpe_weights_pie_df.index, title = "Companies")
+plt.title("Optimal investment proportion in a maximum Sharpe ratio portfolio")
+plt.show()
+
 
 
 ###############################################################################
@@ -478,7 +528,7 @@ opt_portfolios = pd.concat([max_r_portfolio,
                             max_sharpe_portfolio,
                             min_esg_portfolio],
                            axis = 0)
-opt_portfolios.to_csv(r"opt_portfolios_esg.csv")
+opt_portfolios.to_csv(r"C:\Users\gonza\Documents\opt_portfolios_esg.csv")
 
 # Save all the weights in a dataframe
 best_weights = pd.concat([max_r_weights_df,
@@ -500,29 +550,36 @@ rand_returns = np.random.multivariate_normal(predictions_return_df["forecast"],
 # Store portfolio returns
 portfolios_sim = (best_weights @ rand_returns.T).T
 
-# Import ploting libraries
-import matplotlib.pyplot as plt
-import seaborn as sns
-
-sns.kdeplot(data=portfolios_sim, x="max_r_portfolio", label="Maximum Return")
-sns.kdeplot(data=portfolios_sim, x="min_v_portfolio", label="Minimum Volatility")
-sns.kdeplot(data=portfolios_sim, x="min_esg_portfolio", label="Minimum ESG Risk")
-sns.kdeplot(data=portfolios_sim, x="max_sharpe_portfolio", label="Maximum Sharpe ratio")
-plt.legend()
-plt.title("Simulated Portfolio Return Distributions")
-plt.show()
-
 # Store descriptive statistics
 description = portfolios_sim.describe()
-IQR = (portfolios_sim.quantile(0.75) - portfolios_sim.quantile(0.25))
 VaR = portfolios_sim.quantile(0.05)
-skewness = portfolios_sim.skew()
-kurtosis = portfolios_sim.kurt()
 prob_loss = (portfolios_sim < 0).mean()
-description.loc["IQR"] = IQR
 description.loc["VaR"] = VaR
 description.loc["ESG"] = opt_portfolios["esg"]
 description.loc["prob_loss"] = prob_loss
-description.loc["skewness"] = skewness
-description.loc["kurtosis"] = kurtosis
 description.loc["sharpe"] = (description.loc["mean"] - r_f) / description.loc["std"]
+
+# Plot the distributions
+sns.histplot(data=portfolios_sim, x="max_r_portfolio", label="Maximum Return")
+plt.axvline(VaR[0], color = "red")
+plt.xlabel("Portfolio returns")
+plt.title("Simulated maximum return portfolio distribution")
+plt.show()
+
+sns.histplot(data=portfolios_sim, x="min_v_portfolio", label="Minimum Volatility")
+plt.axvline(VaR[1], color = "red")
+plt.xlabel("Portfolio returns")
+plt.title("Simulated minimum volatility portfolio distribution")
+plt.show()
+
+sns.histplot(data=portfolios_sim, x="max_sharpe_portfolio", label="Maximum Sharpe Ratio")
+plt.axvline(VaR[2], color = "red")
+plt.xlabel("Portfolio returns")
+plt.title("Simulated maximum Sharpe ratio portfolio distribution")
+plt.show()
+
+sns.histplot(data=portfolios_sim, x="min_esg_portfolio", label="Minimum ESG Score")
+plt.axvline(VaR[3], color = "red")
+plt.xlabel("Portfolio returns")
+plt.title("Simulated minimum ESG score portfolio distribution")
+plt.show()

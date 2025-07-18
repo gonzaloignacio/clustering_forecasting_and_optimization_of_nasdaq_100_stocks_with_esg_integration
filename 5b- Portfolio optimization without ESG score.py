@@ -1,6 +1,8 @@
 # Import libraries
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
 from amplpy import AMPL, ampl_notebook
 
 # Read the inputs csv, sp500 for benchmark, predictions, correlations and esg
@@ -18,19 +20,22 @@ predictions_volatility_c1_df = pd.read_csv(r"C:\Users\gonza\Documents\cluster_1_
 predictions_return_df = pd.concat([predictions_return_c0_df,
                                    predictions_return_c1_df],
                                   ignore_index = False)
+predictions_return_df = predictions_return_df.sort_index()
 predictions_volatility_df = pd.concat([predictions_volatility_c0_df,
                                        predictions_volatility_c1_df],
                                       ignore_index = False)
+predictions_volatility_df = predictions_volatility_df.sort_index()
 corr_df = pd.read_csv(r"C:\Users\gonza\Documents\corr_matrix.csv",
                       index_col = [0])
+corr_df = corr_df[sorted(corr_df.columns)].sort_index()
 esg_df = pd.read_csv(r"C:\Users\gonza\Documents\cluster_input.csv",
                      index_col = [0])
-esg_df = esg_df["ESG score"]
+esg_df = esg_df["ESG score"].sort_index()
 
 
 
 # Store the companies
-companies = predictions_return_df.index
+companies = predictions_return_df.sort_index().index
 
 # Get the covariance matrix as the correlation multiplied by the forecasted v
 diag = np.diag(predictions_volatility_df["forecast"])
@@ -145,8 +150,23 @@ min_v_weights_df = min_v_weights_df.set_index("model")
 
 # Get all together
 min_v_portfolio = pd.concat([min_v_result, min_v_weights_df],
-                            axis = 1)   
+                            axis = 1) 
 
+# Plot a pie chart with the proportions to invest
+min_v_weights_pie = min_v_weights_df.T
+min_v_weights_pie_df = min_v_weights_pie[min_v_weights_pie["min_v_portfolio"] > 0.01].sort_values("min_v_portfolio", ascending = False)
+min_v_weights_pie_others = 1 - min_v_weights_pie_df["min_v_portfolio"].sum()
+min_v_weights_pie_df.loc["Others"] = min_v_weights_pie_others
+plt.pie(min_v_weights_pie_df["min_v_portfolio"], 
+        labels = None,
+        autopct = "%1.1f%%",
+        pctdistance = 1.2)
+plt.legend(min_v_weights_pie_df.index, title = "Companies", loc = "center left", bbox_to_anchor = (1.05, 0.5))
+plt.title("Optimal investment proportion in a minimum volatility portfolio", loc = "center")
+plt.tight_layout()
+#plt.subplots_adjust(left=0.05, right=0.75)
+plt.show()
+  
 
 
 ###############################################################################
@@ -238,6 +258,17 @@ max_r_weights_df = max_r_weights_df.set_index("model")
 # Get indexes and weights together
 max_r_portfolio = pd.concat([max_r_result, max_r_weights_df],
                             axis = 1)
+
+# Plot a pie chart with the proportions to invest
+max_r_weights_pie = max_r_weights_df.T
+max_r_weights_pie_df = max_r_weights_pie[max_r_weights_pie["max_r_portfolio"] > 0].sort_values("max_r_portfolio", ascending = False)
+plt.pie(max_r_weights_pie_df["max_r_portfolio"], 
+        labels = None,
+        autopct = "%1.1f%%",
+        pctdistance = 1.2)
+plt.legend(max_r_weights_pie_df.index, title = "Companies", loc = "center left")
+plt.title("Optimal investment proportion in a maximum return portfolio")
+plt.show()
 
 
 
@@ -344,6 +375,17 @@ max_sharpe_weights_df = max_sharpe_weights_df.set_index("model")
 max_sharpe_portfolio = pd.concat([max_sharpe_result, max_sharpe_weights_df],
                                  axis = 1)
 
+# Plot a pie chart with the proportions to invest
+max_sharpe_weights_pie = max_sharpe_weights_df.T
+max_sharpe_weights_pie_df = max_sharpe_weights_pie[max_sharpe_weights_pie["max_sharpe_portfolio"] > 0].sort_values("max_sharpe_portfolio", ascending = False)
+plt.pie(max_sharpe_weights_pie_df["max_sharpe_portfolio"], 
+        labels = None,
+        autopct = "%1.1f%%",
+        pctdistance = 1.2)
+plt.legend(max_sharpe_weights_pie_df.index, title = "Companies", loc = "center left")
+plt.title("Optimal investment proportion in a maximum Sharpe ratio portfolio")
+plt.show()
+
 
 
 ###############################################################################
@@ -377,28 +419,30 @@ rand_returns = np.random.multivariate_normal(predictions_return_df["forecast"],
 # Store portfolio returns
 portfolios_sim = (best_weights @ rand_returns.T).T
 
-# Import ploting libraries
-import matplotlib.pyplot as plt
-import seaborn as sns
-
-sns.kdeplot(data=portfolios_sim, x="max_r_portfolio", label="Maximum Return")
-sns.kdeplot(data=portfolios_sim, x="min_v_portfolio", label="Minimum Volatility")
-sns.kdeplot(data=portfolios_sim, x="max_sharpe_portfolio", label="Maximum Sharpe ratio")
-plt.legend()
-plt.title("Simulated Portfolio Return Distributions")
-plt.show()
-
 # Store descriptive statistics
 description = portfolios_sim.describe()
-IQR = (portfolios_sim.quantile(0.75) - portfolios_sim.quantile(0.25))
 VaR = portfolios_sim.quantile(0.05)
-skewness = portfolios_sim.skew()
-kurtosis = portfolios_sim.kurt()
 prob_loss = (portfolios_sim < 0).mean()
-description.loc["IQR"] = IQR
 description.loc["VaR"] = VaR
 description.loc["ESG"] = opt_portfolios["esg"]
 description.loc["prob_loss"] = prob_loss
-description.loc["skewness"] = skewness
-description.loc["kurtosis"] = kurtosis
 description.loc["sharpe"] = (description.loc["mean"] - r_f) / description.loc["std"]
+
+# Plot the distributions
+sns.histplot(data=portfolios_sim, x="max_r_portfolio", label="Maximum Return")
+plt.axvline(VaR[0], color = "red")
+plt.xlabel("Portfolio returns")
+plt.title("Simulated maximum return portfolio distribution")
+plt.show()
+
+sns.histplot(data=portfolios_sim, x="min_v_portfolio", label="Minimum Volatility")
+plt.axvline(VaR[1], color = "red")
+plt.xlabel("Portfolio returns")
+plt.title("Simulated minimum volatility portfolio distribution")
+plt.show()
+
+sns.histplot(data=portfolios_sim, x="max_sharpe_portfolio", label="Maximum Sharpe Ratio")
+plt.axvline(VaR[2], color = "red")
+plt.xlabel("Portfolio returns")
+plt.title("Simulated maximum Sharpe ratio portfolio distribution")
+plt.show()

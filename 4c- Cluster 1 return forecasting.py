@@ -1,6 +1,8 @@
 # Import libraries
 import pandas as pd
 import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
 
 # Read csv for forecasting variables and cluster labels
 forecasting_input_df = pd.read_csv(r"C:\Users\gonza\Documents\forecasting_input.csv")
@@ -25,11 +27,11 @@ scalers = {}
 train_scaled = []
 test_scaled = []
 
-# loop over the tickers and its data
+# Loop over the tickers and its data
 for ticker, group in forecasting_input_df.groupby("Ticker"):
     group = group.sort_values("Date").reset_index(drop=True)
 # Split the data using 65% for training
-    split_idx = int(len(group) * 0.65)
+    split_idx = int(len(group) * 0.8)
     train = group.iloc[:split_idx].copy()
     test = group.iloc[split_idx:].copy()
 # Get the feature columns
@@ -88,7 +90,7 @@ rfr_cv = RandomizedSearchCV(estimator = RandomForestRegressor(random_state = see
                             cv = ts,
                             n_iter = 100,
                             random_state = seed,
-                            scoring = "neg_mean_absolute_percentage_error",
+                            scoring = "neg_root_mean_squared_error",
                             n_jobs = -1)
 rfr_cv.fit(X_train, y_train)
 
@@ -98,6 +100,11 @@ rfr_best_estimators = rfr_cv.best_estimator_.n_estimators
 rfr_best_features = rfr_cv.best_estimator_.max_features
 rfr_best_depth = rfr_cv.best_estimator_.max_depth
 rfr_best_samples = rfr_cv.best_estimator_.min_samples_leaf
+rfr_best_df = pd.DataFrame({"RMSE": [rfr_best_score],
+                            "Estimators": [rfr_best_estimators],
+                            "Max Feaures": [rfr_best_features],
+                            "Max Depth": [rfr_best_depth],
+                            "Min Samples Leaf": [rfr_best_samples]})
 
 # Run the model with the best parameters
 rfr_best = RandomForestRegressor(n_estimators = rfr_best_estimators,
@@ -147,7 +154,7 @@ nnr_cv = RandomizedSearchCV(MLPRegressor(shuffle = False,
                             cv = ts,
                             n_iter = 100,
                             random_state = seed,
-                            scoring = "neg_mean_absolute_percentage_error",
+                            scoring = "neg_root_mean_squared_error",
                             n_jobs = -1)
 nnr_cv.fit(X_train, y_train)
 
@@ -158,6 +165,12 @@ nnr_best_lr = nnr_cv.best_estimator_.learning_rate
 nnr_best_lri = nnr_cv.best_estimator_.learning_rate_init
 nnr_best_activation = nnr_cv.best_estimator_.activation
 nnr_best_alpha = nnr_cv.best_estimator_.alpha
+nnr_best_df = pd.DataFrame({"RMSE": [nnr_best_score],
+                            "Hidden Layer Sizes": [nnr_best_sizes],
+                            "Learning Rate": [nnr_best_lr],
+                            "Learning Rate Initialization": [nnr_best_lri],
+                            "Activation": [nnr_best_activation],
+                            "Alpha": [nnr_best_alpha]})
 
 # Run the model with the best values
 nnr_best = MLPRegressor(hidden_layer_sizes = nnr_best_sizes,
@@ -197,7 +210,7 @@ svr_cv = RandomizedSearchCV(estimator = SVR(),
                             cv = ts,
                             n_iter = 100,
                             random_state = seed,
-                            scoring = "neg_mean_absolute_percentage_error",
+                            scoring = "neg_root_mean_squared_error",
                             n_jobs = -1)
 svr_cv.fit(X_train, y_train)
 
@@ -207,6 +220,11 @@ svr_best_kernel = svr_cv.best_estimator_.kernel
 svr_best_C = svr_cv.best_estimator_.C
 svr_best_gamma = svr_cv.best_estimator_.gamma
 svr_best_epsilon = svr_cv.best_estimator_.epsilon
+svr_best_df = pd.DataFrame({"RMSE": [svr_best_score],
+                            "Kernel": [svr_best_kernel],
+                            "C": [svr_best_C],
+                            "Gamma": [svr_best_gamma],
+                            "Epsilon": [svr_best_epsilon]})
 
 # Run the model with the best parameters
 svr_best = SVR(kernel = svr_best_kernel,
@@ -243,7 +261,7 @@ xgr_cv = RandomizedSearchCV(estimator = XGBRegressor(random_state = seed),
                             cv = ts,
                             n_iter = 100,
                             random_state = seed,
-                            scoring = "neg_mean_absolute_percentage_error",
+                            scoring = "neg_root_mean_squared_error",
                             n_jobs = -1)
 xgr_cv.fit(X_train, y_train)
 
@@ -255,6 +273,13 @@ xgr_best_lr = xgr_cv.best_estimator_.learning_rate
 xgr_best_alpha = xgr_cv.best_estimator_.reg_alpha
 xgr_best_lambda = xgr_cv.best_estimator_.reg_lambda
 xgr_best_weight = xgr_cv.best_estimator_.min_child_weight
+xgr_best_df = pd.DataFrame({"RMSE": [xgr_best_score],
+                            "Estimators": [xgr_best_estimators],
+                            "Max Depth": [xgr_best_depth],
+                            "Learning Rate": [xgr_best_lr],
+                            "Alpha": [xgr_best_alpha],
+                            "Lambda": [xgr_best_lambda],
+                            "Weight": [xgr_best_weight]})
 
 # Run the model with the best parameters
 xgr_best = XGBRegressor(n_estimators = xgr_best_estimators,
@@ -298,19 +323,27 @@ rmse_df = pd.DataFrame({
     "rmse_test": [dr_rmse_test, rfr_rmse_test, xgr_rmse_test, nnr_rmse_test, svr_rmse_test]
 })
 
+# Obtain residuals from the chosen model
+resid = y_test - svr_pred_test
+
+# Plot the residuals histogram
+sns.histplot(x = resid, kde = True)
+plt.axvline(resid.mean(), color = "red")
+plt.xlabel("Residuals")
+plt.ylabel("Frequency")
+plt.title("Histogram of residuals")
+plt.show()
+
 # Merge train and test datasets
 X_full = pd.concat([X_train, X_test])
 y_full = pd.concat([y_train, y_test])
 
 # Train the selected model in the complete dataset
-xgr_selected = XGBRegressor(n_estimators = xgr_best_estimators,
-                            max_depth = xgr_best_depth,
-                            learning_rate = xgr_best_lr,
-                            reg_alpha = xgr_best_alpha,
-                            reg_lambda = xgr_best_lambda,
-                            min_child_weight = xgr_best_weight,
-                            random_state = seed)
-xgr_selected.fit(X_full, y_full)
+svr_selected = SVR(kernel = svr_best_kernel,
+                   C = svr_best_C,
+                   gamma = svr_best_gamma,
+                   epsilon = svr_best_epsilon)
+svr_selected.fit(X_full, y_full)
 
 # To predict tickers return, create empty list for ticker and forecast
 tickers = []
@@ -323,7 +356,7 @@ for ticker in ticker_c0:
     full_data = pd.concat([train_split, test_split])
     full_data.set_index("Date", inplace = True)
     X_ticker = full_data.iloc[-1, 1 : 11]
-    y_pred_scaled = xgr_selected.predict(pd.DataFrame([X_ticker]))
+    y_pred_scaled = svr_selected.predict(pd.DataFrame([X_ticker]))
     scaler = scalers[ticker]
     target_idx = list(scaler.feature_names_in_).index("Rolling_Return")
     mean = scaler.mean_[target_idx]
@@ -336,5 +369,23 @@ for ticker in ticker_c0:
 cluster_1_forecast_r = pd.DataFrame({"company": tickers,
                                    "forecast": forecast})
  
+#Sort to get the top 10 and plot
+top_c1r = cluster_1_forecast_r.sort_values("forecast", ascending = False).iloc[0:10, ]
+sns.barplot(data = top_c1r, x = "forecast", y = "company")
+plt.xlabel("Forecasted return")
+plt.ylabel("Comapny")
+plt.title("Top 10 forecasted return by company for cluster 1")
+plt.xticks(rotation = 45)
+plt.show()
+
+#Sort to get the bottom 10 and plot
+bottom_c1r = cluster_1_forecast_r.sort_values("forecast").iloc[0:10, ]
+sns.barplot(data = bottom_c1r, x = "forecast", y = "company")
+plt.xlabel("Forecasted return")
+plt.ylabel("Comapny")
+plt.title("Bottom 10 forecasted return by company for cluster 0")
+plt.xticks(rotation = 45)
+plt.show()
+
 # Save it as a csv   
 cluster_1_forecast_r.to_csv(r"C:\Users\gonza\Documents\cluster_1_forecast_r.csv")
