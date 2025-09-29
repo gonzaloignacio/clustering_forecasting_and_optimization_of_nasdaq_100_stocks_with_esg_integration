@@ -10,7 +10,7 @@ These findings propose a new framework to create ESG-aware portfolios based on l
 
 ### 📂 File Structure
 
-* The full project documentation, including methodology and detailed results, is available in [`Project.pdf`](report_clustering_forecasting_and_optimization_of_nasdaq_100_stocks_with_esg_integration.pdf).
+* The full project documentation, including methodology and detailed results, is available in [`Project.pdf`](report_esg_portfolio_clustering_forecasting_optimization_nasdaq100.pdf).
 * The code is divided into nine scripts, organized sequentially:
 
 1. `1- Data processing.py` – Data collection and preprocessing.
